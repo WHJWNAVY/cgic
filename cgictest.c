@@ -9,7 +9,7 @@
 
 /* You may need to change this, particularly under Windows;
 	it is a reasonable guess as to an acceptable place to
-	store a saved environment in order to test that feature. 
+	store a saved environment in order to test that feature.
 	If that feature is not important to you, you needn't
 	concern yourself with this. */
 
@@ -60,7 +60,7 @@ int cgiMain() {
 	fprintf(cgiOut, "<HTML><HEAD>\n");
 	fprintf(cgiOut, "<TITLE>cgic test</TITLE></HEAD>\n");
 	fprintf(cgiOut, "<BODY><H1>cgic test</H1>\n");
-	/* If a submit button has already been clicked, act on the 
+	/* If a submit button has already been clicked, act on the
 		submission of the form. */
 	if ((cgiFormSubmitClicked("testcgic") == cgiFormSuccess) ||
 		cgiFormSubmitClicked("saveenvironment") == cgiFormSuccess)
@@ -104,7 +104,7 @@ void Name() {
 	cgiHtmlEscape(name);
 	fprintf(cgiOut, "<BR>\n");
 }
-	
+
 void Address() {
 	char address[241];
 	cgiFormString("address", address, 241);
@@ -120,13 +120,13 @@ void Hungry() {
 		fprintf(cgiOut, "I'm Not Hungry!<BR>\n");
 	}
 }
-	
+
 void Temperature() {
 	double temperature;
 	cgiFormDoubleBounded("temperature", &temperature, 80.0, 120.0, 98.6);
 	fprintf(cgiOut, "My temperature is %f.<BR>\n", temperature);
 }
-	
+
 void Frogs() {
 	int frogsEaten;
 	cgiFormInteger("frogs", &frogsEaten, 0);
@@ -143,7 +143,7 @@ void Color() {
 	int colorChoice;
 	cgiFormSelectSingle("colors", colors, 3, &colorChoice, 0);
 	fprintf(cgiOut, "I am: %s<BR>\n", colors[colorChoice]);
-}	 
+}
 
 char *flavors[] = {
 	"pistachio",
@@ -154,13 +154,13 @@ char *flavors[] = {
 void Flavors() {
 	int flavorChoices[3];
 	int i;
-	int result;	
+	int result;
 	int invalid;
-	result = cgiFormSelectMultiple("flavors", flavors, 3, 
+	result = cgiFormSelectMultiple("flavors", flavors, 3,
 		flavorChoices, &invalid);
 	if (result == cgiFormNotFound) {
 		fprintf(cgiOut, "I hate ice cream.<p>\n");
-	} else {	
+	} else {
 		fprintf(cgiOut, "My favorite ice cream flavors are:\n");
 		fprintf(cgiOut, "<ul>\n");
 		for (i=0; (i < 3); i++) {
@@ -182,12 +182,12 @@ char *ages[] = {
 void RadioButtons() {
 	int ageChoice;
 	char ageText[10];
-	/* Approach #1: check for one of several valid responses. 
+	/* Approach #1: check for one of several valid responses.
 		Good if there are a short list of possible button values and
 		you wish to enumerate them. */
 	cgiFormRadio("age", ages, 4, &ageChoice, 0);
 
-	fprintf(cgiOut, "Age of Truck: %s (method #1)<BR>\n", 
+	fprintf(cgiOut, "Age of Truck: %s (method #1)<BR>\n",
 		ages[ageChoice]);
 
 	/* Approach #2: just get the string. Good
@@ -195,7 +195,7 @@ void RadioButtons() {
 		to verify it in some other way. Note that if
 		the information is numeric, cgiFormInteger,
 		cgiFormDouble, and related functions may be
-		used instead of cgiFormString. */	
+		used instead of cgiFormString. */
 	cgiFormString("age", ageText, 10);
 
 	fprintf(cgiOut, "Age of Truck: %s (method #2)<BR>\n", ageText);
@@ -211,7 +211,7 @@ char *votes[] = {
 void NonExButtons() {
 	int voteChoices[4];
 	int i;
-	int result;	
+	int result;
 	int invalid;
 
 	char **responses;
@@ -220,11 +220,11 @@ void NonExButtons() {
 		since votes for nonexistent candidates should probably
 		be discounted... */
 	fprintf(cgiOut, "Votes (method 1):<BR>\n");
-	result = cgiFormCheckboxMultiple("vote", votes, 4, 
+	result = cgiFormCheckboxMultiple("vote", votes, 4,
 		voteChoices, &invalid);
 	if (result == cgiFormNotFound) {
 		fprintf(cgiOut, "I hate them all!<p>\n");
-	} else {	
+	} else {
 		fprintf(cgiOut, "My preferred candidates are:\n");
 		fprintf(cgiOut, "<ul>\n");
 		for (i=0; (i < 4); i++) {
@@ -241,7 +241,7 @@ void NonExButtons() {
 		or can be checked in some other way. */
 	fprintf(cgiOut, "Votes (method 2):<BR>\n");
 	result = cgiFormStringMultiple("vote", &responses);
-	if (result == cgiFormNotFound) {	
+	if (result == cgiFormNotFound) {
 		fprintf(cgiOut, "I hate them all!<p>\n");
 	} else {
 		int i = 0;
@@ -256,7 +256,7 @@ void NonExButtons() {
 	/* We must be sure to free the string array or a memory
 		leak will occur. Simply calling free() would free
 		the array but not the individual strings. The
-		function cgiStringArrayFree() does the job completely. */	
+		function cgiStringArrayFree() does the job completely. */
 	cgiStringArrayFree(responses);
 }
 
@@ -302,35 +302,46 @@ void Cookies()
 		arrayStep++;
 	}
 	fprintf(cgiOut, "</table>\n");
-	cgiFormString("cname", cname, sizeof(cname));	
-	cgiFormString("cvalue", cvalue, sizeof(cvalue));	
+	cgiFormString("cname", cname, sizeof(cname));
+	cgiFormString("cvalue", cvalue, sizeof(cvalue));
 	if (strlen(cname)) {
 		fprintf(cgiOut, "New Cookie Set On This Call:<p>\n");
-		fprintf(cgiOut, "Name: ");	
+		fprintf(cgiOut, "Name: ");
 		cgiHtmlEscape(cname);
-		fprintf(cgiOut, "Value: ");	
+		fprintf(cgiOut, "Value: ");
 		cgiHtmlEscape(cvalue);
 		fprintf(cgiOut, "<p>\n");
-		fprintf(cgiOut, "If your browser accepts cookies (many do not), this new cookie should appear in the above list the next time the form is submitted.<p>\n"); 
+		fprintf(cgiOut, "If your browser accepts cookies (many do not), this new cookie should appear in the above list the next time the form is submitted.<p>\n");
 	}
 	cgiStringArrayFree(array);
 }
-	
+
 void File()
 {
 	cgiFilePtr file;
 	char name[1024];
 	char contentType[1024];
 	char buffer[1024];
+	char fullname[1024];
+	char newname[1024];
 	int size;
 	int got;
 	if (cgiFormFileName("file", name, sizeof(name)) != cgiFormSuccess) {
 		printf("<p>No file was uploaded.<p>\n");
 		return;
-	} 
+	}
 	fprintf(cgiOut, "The filename submitted was: ");
 	cgiHtmlEscape(name);
 	fprintf(cgiOut, "<p>\n");
+	if(cgiFormFileFullName("file", fullname, sizeof(fullname)) == cgiFormSuccess) {
+		fprintf(cgiOut, "The full filename submitted was: [%s] <p>\n", fullname);
+		snprintf(newname, sizeof(newname), "/tmp/new_%s", name);
+		if(rename(fullname, newname) == 0) {
+			fprintf(cgiOut, "rename the filename from [%s] to [%s] <p>\n", fullname, newname);
+		}
+	} else {
+		fprintf(cgiOut, "Could not get the full filename.<p>\n");
+	}
 	cgiFormFileSize("file", &size);
 	fprintf(cgiOut, "The file size was: %d bytes<p>\n", size);
 	cgiFormFileContentType("file", contentType, sizeof(contentType));
@@ -350,7 +361,9 @@ void File()
 		cgiHtmlEscapeData(buffer, got);
 	}
 	fprintf(cgiOut, "</pre>\n");
+
 	cgiFormFileClose(file);
+	cgiFormFileRemove("file");
 }
 
 void ShowForm()
@@ -429,12 +442,12 @@ void CookieSet()
 	char cname[1024];
 	char cvalue[1024];
 	/* Must set cookies BEFORE calling cgiHeaderContentType */
-	cgiFormString("cname", cname, sizeof(cname));	
-	cgiFormString("cvalue", cvalue, sizeof(cvalue));	
+	cgiFormString("cname", cname, sizeof(cname));
+	cgiFormString("cvalue", cvalue, sizeof(cvalue));
 	if (strlen(cname)) {
 		/* Cookie lives for one day (or until browser chooses
 			to get rid of it, which may be immediately),
-			and applies only to this script on this site. */	
+			and applies only to this script on this site. */
 		cgiHeaderCookieSetString(cname, cvalue,
 			86400, cgiScriptName, SERVER_NAME);
 	}
@@ -442,8 +455,8 @@ void CookieSet()
 
 void LoadEnvironment()
 {
-	if (cgiReadEnvironment(SAVED_ENVIRONMENT) != 
-		cgiEnvironmentSuccess) 
+	if (cgiReadEnvironment(SAVED_ENVIRONMENT) !=
+		cgiEnvironmentSuccess)
 	{
 		cgiHeaderContentType("text/html");
 		fprintf(cgiOut, "<head>Error</head>\n");
@@ -458,8 +471,8 @@ void LoadEnvironment()
 
 void SaveEnvironment()
 {
-	if (cgiWriteEnvironment(SAVED_ENVIRONMENT) != 
-		cgiEnvironmentSuccess) 
+	if (cgiWriteEnvironment(SAVED_ENVIRONMENT) !=
+		cgiEnvironmentSuccess)
 	{
 		fprintf(cgiOut, "<p>cgiWriteEnvironment failed. Most "
 			"likely %s is not a valid path or is not "
@@ -471,7 +484,7 @@ void SaveEnvironment()
 			"scenario: "
 			"<form method=POST action=\"");
 		cgiValueEscape(cgiScriptName);
-		fprintf(cgiOut, "\">" 
+		fprintf(cgiOut, "\">"
 			"<input type=\"submit\" "
 			"value=\"Load Environment\" "
 			"name=\"loadenvironment\"></form><p>\n");

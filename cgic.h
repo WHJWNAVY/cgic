@@ -16,6 +16,8 @@ extern "C" {
 
 #include <stdio.h>
 
+#define CGIC_HEADER_CHECK 1
+
 /* The various CGI environment variables. Instead of using getenv(),
 	the programmer should refer to these, which are always
 	valid null-terminated strings (they may be empty, but they 
@@ -152,6 +154,11 @@ extern cgiFormResultType cgiFormRadio(
 extern cgiFormResultType cgiFormFileName(
 	char *name, char *result, int max);
 
+extern cgiFormResultType cgiFormFileFullName(
+	char *name, char *result, int resultSpace);
+
+cgiFormResultType cgiFormFileRemove(char *name);
+
 /* The content type of the uploaded file, as reported by the browser.
 	It should NOT be assumed that browsers will never falsify
 	such information. */
@@ -211,6 +218,9 @@ extern cgiEnvironmentResultType cgiWriteEnvironment(char *filename);
 extern cgiEnvironmentResultType cgiReadEnvironment(char *filename);
 
 extern int cgiMain();
+#if CGIC_HEADER_CHECK
+extern int cgiHeaderChk();
+#endif
 
 extern cgiFormResultType cgiFormEntries(
 	char ***ptrToStringArray);
