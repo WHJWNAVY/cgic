@@ -1,0 +1,471 @@
+From e8d5f97fa3dac57d6e79628e5f469c639d2a172c Mon Sep 17 00:00:00 2001
+From: wanghaijun <whjwnavy@163.com>
+Date: Thu, 23 Dec 2021 16:06:13 +0800
+Subject: [PATCH 1/2] add full filename when file upload
+
+---
+ extern/ch_cgic/src/cgic-2.08/Makefile   |   8 +-
+ extern/ch_cgic/src/cgic-2.08/cgic.c     | 210 ++++++++++++------------
+ extern/ch_cgic/src/cgic-2.08/cgic.h     |   5 +
+ extern/ch_cgic/src/cgic-2.08/cgictest.c |  13 ++
+ 4 files changed, 130 insertions(+), 106 deletions(-)
+
+diff --git a/extern/ch_cgic/src/cgic-2.08/Makefile b/extern/ch_cgic/src/cgic-2.08/Makefile
+index 8be64c3..acb314a 100644
+--- a/extern/ch_cgic/src/cgic-2.08/Makefile
++++ b/extern/ch_cgic/src/cgic-2.08/Makefile
+@@ -1,5 +1,5 @@
+ CFLAGS=-g -Wall
+-CC=gcc
++CC=arm-openwrt-linux-gcc
+ AR=ar
+ RANLIB=ranlib
+ LIBS=-L./ -lcgic
+@@ -19,14 +19,14 @@ libcgic.a: cgic.o cgic.h
+ #mingw32 and cygwin users: replace .cgi with .exe
+ 
+ cgictest.cgi: cgictest.o libcgic.a
+-	gcc cgictest.o -o cgictest.cgi ${LIBS}
++	$(CC) cgictest.o -o cgictest.cgi ${LIBS}
+ 
+ capture: capture.o libcgic.a
+-	gcc capture.o -o capture ${LIBS}
++	$(CC) capture.o -o capture ${LIBS}
+ 
+ clean:
+ 	rm -f *.o *.a cgictest.cgi capture cgicunittest
+ 
+ test:
+-	gcc -D UNIT_TEST=1 cgic.c -o cgicunittest
++	$(CC) -D UNIT_TEST=1 cgic.c -o cgicunittest
+ 	./cgicunittest
+diff --git a/extern/ch_cgic/src/cgic-2.08/cgic.c b/extern/ch_cgic/src/cgic-2.08/cgic.c
+index 0af957f..168ae80 100644
+--- a/extern/ch_cgic/src/cgic-2.08/cgic.c
++++ b/extern/ch_cgic/src/cgic-2.08/cgic.c
+@@ -9,18 +9,21 @@
+ #define cgicTempDir "/tmp"
+ #define cgicMaxTempSize 1073741824
+ 
++#define CGICDEBUG 1
++
+ #if CGICDEBUG
+-#define CGICDEBUGSTART \
+-	{ \
+-		FILE *dout; \
+-		dout = fopen("/home/boutell/public_html/debug", "a"); \
+-	
+-#define CGICDEBUGEND \
+-		fclose(dout); \
+-	}
++#define CGIC_DEBUG(...)                               				\
++    do {															\
++		FILE *dout = fopen("/tmp/cgic_debug.log", "a+");			\
++        fprintf(dout, "===[%ld]=== %s(%s:%d) ",             		\
++                time(NULL), __func__, __FILE__, __LINE__);			\
++        fprintf(dout, __VA_ARGS__);                             	\
++        fprintf(dout, "\n");                                    	\
++		fclose(dout);												\
++    } while (0)
++
+ #else /* CGICDEBUG */
+-#define CGICDEBUGSTART
+-#define CGICDEBUGEND
++#define CGIC_DEBUG(...)
+ #endif /* CGICDEBUG */
+ 
+ #include <stdio.h>
+@@ -44,6 +47,8 @@
+ 
+ #define cgiStrEq(a, b) (!strcmp((a), (b)))
+ 
++#define CGIC_FILE_NAME_TEMP 1
++
+ char *cgiServerSoftware;
+ char *cgiServerName;
+ char *cgiGatewayInterface;
+@@ -102,6 +107,7 @@ typedef struct cgiFormEntryStruct {
+ 		terminating null of regular fields. */
+ 	int valueLength;
+ 	char *fileName;
++	char *fullFileName;
+ 	char *contentType;
+ 	/* Temporary file descriptor for working storage of file uploads. */
+ 	FILE *tFile;
+@@ -193,13 +199,9 @@ int main(int argc, char *argv[]) {
+ 	cgiGetenv(&cgiUserAgent, "HTTP_USER_AGENT");
+ 	cgiGetenv(&cgiReferrer, "HTTP_REFERER");
+ 	cgiGetenv(&cgiCookie, "HTTP_COOKIE");
+-#ifdef CGICDEBUG
+-	CGICDEBUGSTART
+-	fprintf(dout, "%d\n", cgiContentLength);
+-	fprintf(dout, "%s\n", cgiRequestMethod);
+-	fprintf(dout, "%s\n", cgiContentType);
+-	CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++	CGIC_DEBUG("%d\n", cgiContentLength);
++	CGIC_DEBUG("%s\n", cgiRequestMethod);
++	CGIC_DEBUG("%s\n", cgiContentType);	
+ #ifdef WIN32
+ 	/* 1.07: Must set stdin and stdout to binary mode */
+ 	/* 2.0: this is particularly crucial now and must not be removed */
+@@ -223,73 +225,37 @@ int main(int argc, char *argv[]) {
+ 
+ 
+ 	if (cgiStrEqNc(cgiRequestMethod, "post")) {
+-#ifdef CGICDEBUG
+-		CGICDEBUGSTART
+-		fprintf(dout, "POST recognized\n");
+-		CGICDEBUGEND
+-#endif /* CGICDEBUG */
++		CGIC_DEBUG("POST recognized\n");
+ 		if (cgiStrEqNc(cgiContentType, "application/x-www-form-urlencoded")) {	
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "Calling PostFormInput\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("Calling PostFormInput\n");	
+ 			if (cgiParsePostFormInput() != cgiParseSuccess) {
+-#ifdef CGICDEBUG
+-				CGICDEBUGSTART
+-				fprintf(dout, "PostFormInput failed\n");
+-				CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++				CGIC_DEBUG("PostFormInput failed\n");
+ 				cgiHeaderStatus(500, "Error reading form data");
+ 				cgiFreeResources();
+ 				return -1;
+ 			}	
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "PostFormInput succeeded\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("PostFormInput succeeded\n");
+ 		} else if (cgiStrEqNc(cgiContentType, "multipart/form-data")) {
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "Calling PostMultipartInput\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("Calling PostMultipartInput\n");
+ 			if (cgiParsePostMultipartInput() != cgiParseSuccess) {
+-#ifdef CGICDEBUG
+-				CGICDEBUGSTART
+-				fprintf(dout, "PostMultipartInput failed\n");
+-				CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++				CGIC_DEBUG("PostMultipartInput failed\n");
+ 				cgiHeaderStatus(500, "Error reading form data");
+ 				cgiFreeResources();
+ 				return -1;
+ 			}	
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "PostMultipartInput succeeded\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("PostMultipartInput succeeded\n");
+ 		}
+ 	} else if (cgiStrEqNc(cgiRequestMethod, "get")) {	
+ 		/* The spec says this should be taken care of by
+ 			the server, but... it isn't */
+ 		cgiContentLength = strlen(cgiQueryString);
+ 		if (cgiParseGetFormInput() != cgiParseSuccess) {
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "GetFormInput failed\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("GetFormInput failed\n");
+ 			cgiHeaderStatus(500, "Error reading form data");
+ 			cgiFreeResources();
+ 			return -1;
+ 		} else {	
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "GetFormInput succeeded\n");
+-			CGICDEBUGEND	
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("GetFormInput succeeded\n");
+ 		}
+ 	}
+ #ifdef UNIT_TEST
+@@ -437,7 +403,7 @@ static void decomposeValue(char *value,
+ 	char **argValues,
+ 	int argValueSpace);
+ 
+-static cgiParseResultType getTempFile(FILE **tFile);
++static cgiParseResultType getTempFile(FILE **tFile, char *fullFileName);
+ 
+ static cgiParseResultType cgiParsePostMultipartInput() {
+ 	cgiParseResultType result;
+@@ -465,6 +431,7 @@ static cgiParseResultType cgiParsePostMultipartInput() {
+ 		char fname[1024];
+ 		int bodyLength = 0;
+ 		char ffileName[1024];
++		char tfileName[1024];
+ 		char fcontentType[1024];
+ 		char attr[1024];
+ 		char value[1024];
+@@ -529,9 +496,13 @@ static cgiParseResultType cgiParsePostMultipartInput() {
+ 			Otherwise, store to a memory buffer (it is
+ 			presumably a regular form field). */
+ 		if (strlen(ffileName)) {
+-			if (getTempFile(&outf) != cgiParseSuccess) {
++			#if CGIC_FILE_NAME_TEMP
++			if (getTempFile(&outf, tfileName) != cgiParseSuccess) {
+ 				return cgiParseIO;
+-			}	
++			}
++			#else
++			snprintf(tfileName, sizeof(tfileName), cgicTempDir "/%s", ffileName);
++			#endif
+ 		} else {
+ 			outf = 0;
+ 		}	
+@@ -581,12 +552,18 @@ static cgiParseResultType cgiParsePostMultipartInput() {
+ 			goto outOfMemory;
+ 		}
+ 		strcpy(n->fileName, ffileName);
++		n->fullFileName = (char *) malloc(strlen(tfileName) + 1);
++		if (!n->fullFileName) {
++			goto outOfMemory;
++		}
++		strcpy(n->fullFileName, tfileName);
++		CGIC_DEBUG("fullFileName [%s]", n->fullFileName);
+ 		n->contentType = (char *) malloc(strlen(fcontentType) + 1);
+ 		if (!n->contentType) {
+ 			goto outOfMemory;
+ 		}
+ 		strcpy(n->contentType, fcontentType);
+-	
++
+ 		if(outf)
+ 		{
+ 			n->tFile = fdopen (dup (fileno (outf)), "w+b");
+@@ -625,15 +602,20 @@ outOfMemory:
+ return cgiParseMemory;
+ }
+ 
+-static cgiParseResultType getTempFile(FILE **tFile)
++static cgiParseResultType getTempFile(FILE **tFile, char *fullFileName)
+ {
+ 	/* tfileName must be 1024 bytes to ensure adequacy on
+ 		win32 (1024 exceeds the maximum path length and
+ 		certainly exceeds observed behavior of _tmpnam).
+ 		May as well also be 1024 bytes on Unix, although actual
+ 		length is strlen(cgiTempDir) + a short unique pattern. */
+-	char tfileName[1024];
+-	
++	char tfileNameBuffer[1024];
++	char *tfileName = NULL;
++	if(fullFileName == NULL) {
++		tfileName = tfileNameBuffer;
++	} else {
++		tfileName = fullFileName;
++	}
+ #ifndef WIN32
+ 	/* Unix. Use the robust 'mkstemp' function to create
+ 		a temporary file that is truly unique, with
+@@ -662,7 +644,10 @@ static cgiParseResultType getTempFile(FILE **tFile)
+ 	}
+ #endif
+ 	*tFile = fopen(tfileName, "w+b");
+-	unlink(tfileName);
++	if(fullFileName == NULL) {
++		unlink(tfileName);
++	}
++	CGIC_DEBUG("fullFileName = [%s]", tfileName);
+ 	return cgiParseSuccess;
+ }
+ 
+@@ -1251,6 +1236,51 @@ cgiFormResultType cgiFormFileName(
+ 	}
+ }
+ 
++cgiFormResultType cgiFormFileFullName(
++	char *name, char *result, int resultSpace)
++{
++	cgiFormEntry *e;
++	int resultLen = 0;
++	char *s;
++	e = cgiFormEntryFindFirst(name);
++	if (!e) {
++		strcpy(result, "");
++		return cgiFormNotFound;
++	}
++	s = e->fullFileName;
++	while (*s) {
++		APPEND(result, *s);
++		s++;
++	}	
++	if (resultSpace) {
++		result[resultLen] = '\0';
++	}
++	CGIC_DEBUG("cgiFormFileFullName [%s]", result);
++	if (!strlen(e->fullFileName)) {
++		return cgiFormNoFileName;
++	} else if (((int) strlen(e->fullFileName)) > (resultSpace - 1)) {
++		return cgiFormTruncated;
++	} else {
++		return cgiFormSuccess;
++	}
++}
++
++cgiFormResultType cgiFormFileRemove(char *name)
++{
++	cgiFormEntry *e;
++
++	e = cgiFormEntryFindFirst(name);
++	if (!e) {
++		return cgiFormNotFound;
++	}
++
++	if (strlen(e->fullFileName)) {
++		unlink(e->fullFileName);
++	}
++
++	return cgiFormSuccess;
++}
++
+ cgiFormResultType cgiFormFileContentType(
+ 	char *name, char *result, int resultSpace)
+ {
+@@ -1400,11 +1430,7 @@ cgiFormResultType cgiFormStringMultiple(
+ 	}
+ 	/* Now go get the entries */
+ 	e = cgiFormEntryFindFirst(name);
+-#ifdef CGICDEBUG
+-	CGICDEBUGSTART
+-	fprintf(dout, "StringMultiple Beginning\n");
+-	CGICDEBUGEND
+-#endif /* CGICDEBUG */
++	CGIC_DEBUG("StringMultiple Beginning\n");
+ 	if (e) {
+ 		i = 0;
+ 		do {
+@@ -1421,21 +1447,13 @@ cgiFormResultType cgiFormStringMultiple(
+ 			i++;
+ 		} while ((e = cgiFormEntryFindNext()) != 0); 
+ 		*result = stringArray;
+-#ifdef CGICDEBUG
+-		CGICDEBUGSTART
+-		fprintf(dout, "StringMultiple Succeeding\n");
+-		CGICDEBUGEND
+-#endif /* CGICDEBUG */
++		CGIC_DEBUG("StringMultiple Succeeding\n");
+ 		return cgiFormSuccess;
+ 	} else {
+ 		*result = stringArray;
+-#ifdef CGICDEBUG
+-		CGICDEBUGSTART
+-		fprintf(dout, "StringMultiple found nothing\n");
+-		CGICDEBUGEND
+-#endif /* CGICDEBUG */
++		CGIC_DEBUG("StringMultiple found nothing\n");
+ 		return cgiFormNotFound;
+-	}	
++	}
+ }
+ 
+ cgiFormResultType cgiFormStringSpaceNeeded(
+@@ -1619,27 +1637,15 @@ cgiFormResultType cgiFormSelectSingle(
+ 	cgiFormEntry *e;
+ 	int i;
+ 	e = cgiFormEntryFindFirst(name);
+-#ifdef CGICDEBUG
+-	CGICDEBUGSTART
+-	fprintf(dout, "%d\n", (int) e);
+-	CGICDEBUGEND
+-#endif /* CGICDEBUG */
++	CGIC_DEBUG("%d\n", (int) e);
+ 	if (!e) {
+ 		*result = defaultV;
+ 		return cgiFormNotFound;
+ 	}
+ 	for (i=0; (i < choicesTotal); i++) {
+-#ifdef CGICDEBUG
+-		CGICDEBUGSTART
+-		fprintf(dout, "%s %s\n", choicesText[i], e->value);
+-		CGICDEBUGEND
+-#endif /* CGICDEBUG */
++		CGIC_DEBUG("%s %s\n", choicesText[i], e->value);
+ 		if (cgiStrEq(choicesText[i], e->value)) {
+-#ifdef CGICDEBUG
+-			CGICDEBUGSTART
+-			fprintf(dout, "MATCH\n");
+-			CGICDEBUGEND
+-#endif /* CGICDEBUG */
++			CGIC_DEBUG("MATCH\n");
+ 			*result = i;
+ 			return cgiFormSuccess;
+ 		}
+@@ -2173,7 +2179,7 @@ cgiEnvironmentResultType cgiReadEnvironment(char *filename) {
+ 			FILE *out = NULL;
+ 			int got;
+ 			int len = e->valueLength;
+-			if (getTempFile(&out)
++			if (getTempFile(&out, NULL)
+ 				!= cgiParseSuccess || !out)
+ 			{
+ 				result = cgiEnvironmentIO;
+diff --git a/extern/ch_cgic/src/cgic-2.08/cgic.h b/extern/ch_cgic/src/cgic-2.08/cgic.h
+index 472e23a..260b4e6 100644
+--- a/extern/ch_cgic/src/cgic-2.08/cgic.h
++++ b/extern/ch_cgic/src/cgic-2.08/cgic.h
+@@ -152,6 +152,11 @@ extern cgiFormResultType cgiFormRadio(
+ extern cgiFormResultType cgiFormFileName(
+ 	char *name, char *result, int max);
+ 
++extern cgiFormResultType cgiFormFileFullName(
++	char *name, char *result, int resultSpace);
++
++cgiFormResultType cgiFormFileRemove(char *name);
++
+ /* The content type of the uploaded file, as reported by the browser.
+ 	It should NOT be assumed that browsers will never falsify
+ 	such information. */
+diff --git a/extern/ch_cgic/src/cgic-2.08/cgictest.c b/extern/ch_cgic/src/cgic-2.08/cgictest.c
+index da2f68b..68c6399 100644
+--- a/extern/ch_cgic/src/cgic-2.08/cgictest.c
++++ b/extern/ch_cgic/src/cgic-2.08/cgictest.c
+@@ -322,6 +322,8 @@ void File()
+ 	char name[1024];
+ 	char contentType[1024];
+ 	char buffer[1024];
++	char fullname[1024];
++	char newname[1024];
+ 	int size;
+ 	int got;
+ 	if (cgiFormFileName("file", name, sizeof(name)) != cgiFormSuccess) {
+@@ -331,6 +333,15 @@ void File()
+ 	fprintf(cgiOut, "The filename submitted was: ");
+ 	cgiHtmlEscape(name);
+ 	fprintf(cgiOut, "<p>\n");
++	if(cgiFormFileFullName("file", fullname, sizeof(fullname)) == cgiFormSuccess) {
++		fprintf(cgiOut, "The full filename submitted was: [%s] <p>\n", fullname);
++		snprintf(newname, sizeof(newname), "/tmp/new_%s", name);
++		if(rename(fullname, newname) == 0) {
++			fprintf(cgiOut, "rename the filename from [%s] to [%s] <p>\n", fullname, newname);
++		}
++	} else {
++		fprintf(cgiOut, "Could not get the full filename.<p>\n");
++	}
+ 	cgiFormFileSize("file", &size);
+ 	fprintf(cgiOut, "The file size was: %d bytes<p>\n", size);
+ 	cgiFormFileContentType("file", contentType, sizeof(contentType));
+@@ -350,7 +361,9 @@ void File()
+ 		cgiHtmlEscapeData(buffer, got);
+ 	}
+ 	fprintf(cgiOut, "</pre>\n");
++
+ 	cgiFormFileClose(file);
++	cgiFormFileRemove("file");
+ }
+ 
+ void ShowForm()
+-- 
+2.24.1
+
