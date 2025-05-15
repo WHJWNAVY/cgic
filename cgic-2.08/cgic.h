@@ -78,140 +78,106 @@ extern FILE *cgiIn;
 /* Possible return codes from the cgiForm family of functions (see below). */
 
 typedef enum {
-	cgiFormSuccess,
-	cgiFormTruncated,
-	cgiFormBadType,
-	cgiFormEmpty,
-	cgiFormNotFound,
-	cgiFormConstrained,
-	cgiFormNoSuchChoice,
-	cgiFormMemory,
-	cgiFormNoFileName,
-	cgiFormNoContentType,
-	cgiFormNotAFile,
-	cgiFormOpenFailed,
-	cgiFormIO,
-	cgiFormEOF
+    cgiFormSuccess,
+    cgiFormTruncated,
+    cgiFormBadType,
+    cgiFormEmpty,
+    cgiFormNotFound,
+    cgiFormConstrained,
+    cgiFormNoSuchChoice,
+    cgiFormMemory,
+    cgiFormNoFileName,
+    cgiFormNoContentType,
+    cgiFormNotAFile,
+    cgiFormOpenFailed,
+    cgiFormIO,
+    cgiFormEOF
 } cgiFormResultType;
 
 /* These functions are used to retrieve form data. See
 	cgic.html for documentation. */
 
-extern cgiFormResultType cgiFormString(
-	char *name, char *result, int max);
+extern cgiFormResultType cgiFormString(char *name, char *result, int max);
 
-extern cgiFormResultType cgiFormStringNoNewlines(
-	char *name, char *result, int max);
+extern cgiFormResultType cgiFormStringNoNewlines(char *name, char *result, int max);
 
+extern cgiFormResultType cgiFormStringSpaceNeeded(char *name, int *length);
 
-extern cgiFormResultType cgiFormStringSpaceNeeded(
-	char *name, int *length);
-
-
-extern cgiFormResultType cgiFormStringMultiple(
-	char *name, char ***ptrToStringArray);
+extern cgiFormResultType cgiFormStringMultiple(char *name, char ***ptrToStringArray);
 
 extern void cgiStringArrayFree(char **stringArray);
 
-extern cgiFormResultType cgiFormInteger(
-	char *name, int *result, int defaultV);
+extern cgiFormResultType cgiFormInteger(char *name, int *result, int defaultV);
 
-extern cgiFormResultType cgiFormIntegerBounded(
-	char *name, int *result, int min, int max, int defaultV);
+extern cgiFormResultType cgiFormIntegerBounded(char *name, int *result, int min, int max, int defaultV);
 
-extern cgiFormResultType cgiFormDouble(
-	char *name, double *result, double defaultV);
+extern cgiFormResultType cgiFormDouble(char *name, double *result, double defaultV);
 
-extern cgiFormResultType cgiFormDoubleBounded(
-	char *name, double *result, double min, double max, double defaultV);
+extern cgiFormResultType cgiFormDoubleBounded(char *name, double *result, double min, double max, double defaultV);
 
-extern cgiFormResultType cgiFormSelectSingle(
-	char *name, char **choicesText, int choicesTotal, 
-	int *result, int defaultV);	
+extern cgiFormResultType cgiFormSelectSingle(char *name, char **choicesText, int choicesTotal, int *result,
+                                             int defaultV);
 
-
-extern cgiFormResultType cgiFormSelectMultiple(
-	char *name, char **choicesText, int choicesTotal, 
-	int *result, int *invalid);
+extern cgiFormResultType cgiFormSelectMultiple(char *name, char **choicesText, int choicesTotal, int *result,
+                                               int *invalid);
 
 /* Just an alias; users have asked for this */
 #define cgiFormSubmitClicked cgiFormCheckboxSingle
 
-extern cgiFormResultType cgiFormCheckboxSingle(
-	char *name);
+extern cgiFormResultType cgiFormCheckboxSingle(char *name);
 
-extern cgiFormResultType cgiFormCheckboxMultiple(
-	char *name, char **valuesText, int valuesTotal, 
-	int *result, int *invalid);
+extern cgiFormResultType cgiFormCheckboxMultiple(char *name, char **valuesText, int valuesTotal, int *result,
+                                                 int *invalid);
 
-extern cgiFormResultType cgiFormRadio(
-	char *name, char **valuesText, int valuesTotal, 
-	int *result, int defaultV);	
+extern cgiFormResultType cgiFormRadio(char *name, char **valuesText, int valuesTotal, int *result, int defaultV);
 
 /* The paths returned by this function are the original names of files
 	as reported by the uploading web browser and shoult NOT be
 	blindly assumed to be "safe" names for server-side use! */
-extern cgiFormResultType cgiFormFileName(
-	char *name, char *result, int max);
+extern cgiFormResultType cgiFormFileName(char *name, char *result, int max);
 
-extern cgiFormResultType cgiFormFileFullName(
-	char *name, char *result, int resultSpace);
+extern cgiFormResultType cgiFormFileFullName(char *name, char *result, int resultSpace);
 
 cgiFormResultType cgiFormFileRemove(char *name);
 
 /* The content type of the uploaded file, as reported by the browser.
 	It should NOT be assumed that browsers will never falsify
 	such information. */
-extern cgiFormResultType cgiFormFileContentType(
-	char *name, char *result, int max);
+extern cgiFormResultType cgiFormFileContentType(char *name, char *result, int max);
 
-extern cgiFormResultType cgiFormFileSize(
-	char *name, int *sizeP);
+extern cgiFormResultType cgiFormFileSize(char *name, int *sizeP);
 
 typedef struct cgiFileStruct *cgiFilePtr;
 
-extern cgiFormResultType cgiFormFileOpen(
-	char *name, cgiFilePtr *cfpp);
+extern cgiFormResultType cgiFormFileOpen(char *name, cgiFilePtr *cfpp);
 
-extern cgiFormResultType cgiFormFileRead(
-	cgiFilePtr cfp, char *buffer, int bufferSize, int *gotP);
+extern cgiFormResultType cgiFormFileRead(cgiFilePtr cfp, char *buffer, int bufferSize, int *gotP);
 
-extern cgiFormResultType cgiFormFileClose(
-	cgiFilePtr cfp);
+extern cgiFormResultType cgiFormFileClose(cgiFilePtr cfp);
 
-extern cgiFormResultType cgiCookieString(
-	char *name, char *result, int max);
+extern cgiFormResultType cgiCookieString(char *name, char *result, int max);
 
-extern cgiFormResultType cgiCookieInteger(
-	char *name, int *result, int defaultV);
+extern cgiFormResultType cgiCookieInteger(char *name, int *result, int defaultV);
 
-cgiFormResultType cgiCookies(
-	char ***ptrToStringArray);
+cgiFormResultType cgiCookies(char ***ptrToStringArray);
 
-typedef enum {
-	cgiCookieSecure         = 1,
-	cgiCookieHttpOnly       = 2,
-	cgiCookieSameSiteStrict = 4
-} cgiCookieOption;
+typedef enum { cgiCookieSecure = 1, cgiCookieHttpOnly = 2, cgiCookieSameSiteStrict = 4 } cgiCookieOption;
 
 /* path can be null or empty in which case a path of / (entire site) is set. 
 	domain can be a single web site; if it is an entire domain, such as
 	'boutell.dev', it should begin with a dot: '.boutell.dev' */
-extern void cgiHeaderCookieSet(char *name, char *value,
-	int secondsToLive, char *path, char *domain, int options);
-extern void cgiHeaderCookieSetString(char *name, char *value,
-	int secondsToLive, char *path, char *domain);
-extern void cgiHeaderCookieSetInteger(char *name, int value,
-	int secondsToLive, char *path, char *domain);
+extern void cgiHeaderCookieSet(char *name, char *value, int secondsToLive, char *path, char *domain, int options);
+extern void cgiHeaderCookieSetString(char *name, char *value, int secondsToLive, char *path, char *domain);
+extern void cgiHeaderCookieSetInteger(char *name, int value, int secondsToLive, char *path, char *domain);
 extern void cgiHeaderLocation(char *redirectUrl);
 extern void cgiHeaderStatus(int status, char *statusMessage);
 extern void cgiHeaderContentType(char *mimeType);
 
 typedef enum {
-	cgiEnvironmentIO,
-	cgiEnvironmentMemory,
-	cgiEnvironmentSuccess,
-	cgiEnvironmentWrongVersion
+    cgiEnvironmentIO,
+    cgiEnvironmentMemory,
+    cgiEnvironmentSuccess,
+    cgiEnvironmentWrongVersion
 } cgiEnvironmentResultType;
 
 extern cgiEnvironmentResultType cgiWriteEnvironment(char *filename);
@@ -222,8 +188,7 @@ extern int cgiMain();
 extern int cgiHeaderChk();
 #endif
 
-extern cgiFormResultType cgiFormEntries(
-	char ***ptrToStringArray);
+extern cgiFormResultType cgiFormEntries(char ***ptrToStringArray);
 
 /* Output string with the <, &, and > characters HTML-escaped. 
 	's' is null-terminated. Returns cgiFormIO in the event
@@ -256,4 +221,3 @@ cgiFormResultType cgiValueEscapeData(const char *data, int len);
 #endif /* __cplusplus */
 
 #endif /* CGI_C */
-
