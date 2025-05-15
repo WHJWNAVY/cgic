@@ -16,7 +16,7 @@ extern "C" {
 
 #include <stdio.h>
 
-#define CGIC_HEADER_CHECK 1
+#define CGIC_HEADER_CHECK 0
 
 /* The various CGI environment variables. Instead of using getenv(),
 	the programmer should refer to these, which are always

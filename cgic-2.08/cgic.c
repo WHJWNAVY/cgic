@@ -7,18 +7,21 @@
 	modify the getTempFile() function to suit your needs. */
 
 #define cgicTempDir "/tmp"
-#define cgicMaxTempSize 1073741824
+#define cgicTempFilePrefix "/.tmp.cgicXXXXXX"
+#define cgicTempFileMode 0666
+#define cgicMaxTempSize (1024 * 1024 * 1024 * 1) // 1GB
 
 #define CGICDEBUG 0
 
 #if CGICDEBUG
-#define CGIC_DEBUG(...)                                                                    \
-    do {                                                                                   \
-        FILE *dout = fopen("/tmp/cgic_debug.log", "a+");                                   \
-        fprintf(dout, "===[%ld]=== %s(%s:%d) ", time(NULL), __func__, __FILE__, __LINE__); \
-        fprintf(dout, __VA_ARGS__);                                                        \
-        fprintf(dout, "\n");                                                               \
-        fclose(dout);                                                                      \
+#define CGIC_DEBUG_FILE "/tmp/cgic_debug.log"
+#define CGIC_DEBUG(...)                                                        \
+    do {                                                                       \
+        FILE *dout = fopen(CGIC_DEBUG_FILE, "a+");                             \
+        fprintf(dout, "===[%ld]=== (%s:%d) ", time(NULL), __func__, __LINE__); \
+        fprintf(dout, __VA_ARGS__);                                            \
+        fprintf(dout, "\n");                                                   \
+        fclose(dout);                                                          \
     } while (0)
 
 #else /* CGICDEBUG */
@@ -113,6 +116,7 @@ typedef struct cgiFormEntryStruct {
 static cgiFormEntry *cgiFormEntryFirst;
 
 static cgiParseResultType cgiParseGetFormInput();
+static cgiParseResultType cgiParseQueryFormInput();
 static cgiParseResultType cgiParsePostFormInput();
 static cgiParseResultType cgiParsePostMultipartInput();
 static cgiParseResultType cgiParseFormInput(char *data, int length);
@@ -226,6 +230,12 @@ int main(int argc, char *argv[]) {
 
     if (cgiStrEqNc(cgiRequestMethod, "post")) {
         CGIC_DEBUG("POST recognized\n");
+        if (cgiParseQueryFormInput() != cgiParseSuccess) {
+            CGIC_DEBUG("QueryFormInput failed\n");
+            cgiHeaderStatus(500, "Error reading form data");
+            cgiFreeResources();
+            return -1;
+        }
         if (cgiStrEqNc(cgiContentType, "application/x-www-form-urlencoded")) {
             CGIC_DEBUG("Calling PostFormInput\n");
             if (cgiParsePostFormInput() != cgiParseSuccess) {
@@ -286,6 +296,7 @@ static cgiParseResultType cgiParsePostFormInput() {
         return cgiParseMemory;
     }
     if (((int)fread(input, 1, cgiContentLength, cgiIn)) != cgiContentLength) {
+        free(input);
         return cgiParseIO;
     }
     result = cgiParseFormInput(input, cgiContentLength);
@@ -390,7 +401,7 @@ static cgiParseResultType getTempFile(FILE **tFile, char *fullFileName);
 
 static cgiParseResultType cgiParsePostMultipartInput() {
     cgiParseResultType result;
-    cgiFormEntry *n = 0, *l = 0;
+    cgiFormEntry *n = 0, *l = cgiFormEntryFirst;
     int got;
     FILE *outf = 0;
     char *out = 0;
@@ -518,6 +529,9 @@ static cgiParseResultType cgiParsePostMultipartInput() {
         if (!l) {
             cgiFormEntryFirst = n;
         } else {
+            while (l->next) {
+                l = l->next;
+            }
             l->next = n;
         }
         n->fileName = (char *)malloc(strlen(ffileName) + 1);
@@ -597,14 +611,14 @@ static cgiParseResultType getTempFile(FILE **tFile, char *fullFileName) {
 		chmod call (glibc 2.0.6 and lower might
 		otherwise have allowed this). */
     int outfd;
-    strcpy(tfileName, cgicTempDir "/cgicXXXXXX");
+    strcpy(tfileName, cgicTempDir cgicTempFilePrefix);
     outfd = mkstemp(tfileName);
     if (outfd == -1) {
         return cgiParseIO;
     }
     close(outfd);
     /* Fix the permissions */
-    if (chmod(tfileName, 0600) != 0) {
+    if (chmod(tfileName, cgicTempFileMode) != 0) {
         unlink(tfileName);
         return cgiParseIO;
     }
@@ -931,6 +945,11 @@ static cgiParseResultType cgiParseGetFormInput() {
     return cgiParseFormInput(cgiQueryString, cgiContentLength);
 }
 
+static cgiParseResultType cgiParseQueryFormInput() {
+    CGIC_DEBUG("Calling QueryFormInput\n");
+    return cgiParseFormInput(cgiQueryString, strlen(cgiQueryString));
+}
+
 typedef enum { cgiEscapeRest, cgiEscapeFirst, cgiEscapeSecond } cgiEscapeState;
 
 typedef enum { cgiUnescapeSuccess, cgiUnescapeMemory } cgiUnescapeResultType;
@@ -941,7 +960,7 @@ static cgiParseResultType cgiParseFormInput(char *data, int length) {
     /* Scan for pairs, unescaping and storing them as they are found. */
     int pos = 0;
     cgiFormEntry *n;
-    cgiFormEntry *l = 0;
+    cgiFormEntry *l = cgiFormEntryFirst;
     while (pos != length) {
         int foundAmp = 0;
         int start = pos;
@@ -1015,9 +1034,13 @@ static cgiParseResultType cgiParseFormInput(char *data, int length) {
         if (!l) {
             cgiFormEntryFirst = n;
         } else {
+            while (l->next) {
+                l = l->next;
+            }
             l->next = n;
         }
         l = n;
+        // CGIC_DEBUG("Form Entry [%s] = [%s]\n", l->attr, l->value);
         if (!foundAmp) {
             break;
         }
@@ -1405,6 +1428,7 @@ static cgiFormResultType cgiFormEntryString(cgiFormEntry *e, char *result, int m
     int lfCount = 0;
     dp = result;
     sp = e->value;
+    // CGIC_DEBUG("Form Entry [%s] = [%s]\n", e->attr, e->value);
     while (1) {
         int ch;
         /* 1.07: don't check for available space now.
@@ -1466,6 +1490,7 @@ static cgiFormResultType cgiFormEntryString(cgiFormEntry *e, char *result, int m
         sp++;
     }
     *dp = '\0';
+    // CGIC_DEBUG("Form Entry Value [%s]\n", result);
     if (truncated) {
         return cgiFormTruncated;
     } else if (!len) {
@@ -2183,6 +2208,7 @@ static cgiFormEntry *cgiFormEntryFindNext() {
     while (cgiFindPos) {
         cgiFormEntry *c = cgiFindPos;
         cgiFindPos = c->next;
+        // CGIC_DEBUG("Form Entry [%s] = [%s], looking for [%s]\n", c->attr, c->value, cgiFindTarget);
         if (!strcmp(c->attr, cgiFindTarget)) {
             return c;
         }
